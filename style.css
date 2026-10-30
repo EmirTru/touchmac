@@ -59,7 +59,15 @@ html, body {
 }
 
 #webcam-video {
-  display: none; /* Processed in memory and drawn onto canvas */
+  /* Do NOT use display:none on iOS Safari - it pauses video decoding after 1 second! */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0.001;
+  pointer-events: none;
+  z-index: -999;
 }
 
 /* object-fit: contain prevents cropping so camera has zero artificial zoom */

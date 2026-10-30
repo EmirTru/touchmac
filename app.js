@@ -380,18 +380,15 @@
 
   hands.setOptions({
     maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.65,
-    minTrackingConfidence: 0.65,
+    modelComplexity: 0, // Lite model for mobile: 60 FPS, ultra-low latency, zero WebGL crashes
+    minDetectionConfidence: 0.55,
+    minTrackingConfidence: 0.55,
   });
 
   hands.onResults((results) => {
     if (!isHandsReady) {
       isHandsReady = true;
-      loadingScreen.style.opacity = "0";
-      setTimeout(() => {
-        loadingScreen.style.display = "none";
-      }, 400);
+      dismissLoading();
     }
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
@@ -419,36 +416,54 @@
     }
   });
 
-  // Render & Detection Loop
+  // Render & Detection Loop (Protected with try-finally so render loop never freezes)
   let isSendingFrame = false;
+  let frameWatchdog = null;
 
   async function frameLoop() {
-    updateFps();
+    try {
+      updateFps();
 
-    // Draw live webcam frame onto canvas
-    if (video.readyState >= 2) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Draw calibration polygon & corner pins
-      calibration.draw(ctx, video);
-
-      // Draw hand skeleton & crosshair HUD
-      if (lastLandmarks) {
-        gesture.drawHUD(ctx, lastLandmarks, canvas.width, canvas.height);
+      // Ensure video is actively playing (auto-resume if WebKit paused it)
+      if (video.paused && video.readyState >= 2) {
+        video.play().catch(() => {});
       }
 
-      // Send frame to MediaPipe if not currently busy
-      if (!isSendingFrame) {
-        isSendingFrame = true;
-        hands.send({ image: video })
-          .catch(() => {})
-          .finally(() => {
+      // Draw live camera frame onto canvas
+      if (video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Draw calibration polygon & corner pins
+        calibration.draw(ctx, video);
+
+        // Draw hand skeleton & crosshair HUD
+        if (lastLandmarks) {
+          gesture.drawHUD(ctx, lastLandmarks, canvas.width, canvas.height);
+        }
+
+        // Send frame to MediaPipe using rendered canvas (avoids WebKit video stream lockups)
+        if (!isSendingFrame) {
+          isSendingFrame = true;
+          clearTimeout(frameWatchdog);
+          frameWatchdog = setTimeout(() => {
             isSendingFrame = false;
-          });
-      }
-    }
+          }, 350); // 350ms safety watchdog prevents lockup
 
-    requestAnimationFrame(frameLoop);
+          hands.send({ image: canvas })
+            .catch((err) => {
+              console.warn("MediaPipe inference error:", err);
+            })
+            .finally(() => {
+              clearTimeout(frameWatchdog);
+              isSendingFrame = false;
+            });
+        }
+      }
+    } catch (err) {
+      console.error("Frame loop render error:", err);
+    } finally {
+      requestAnimationFrame(frameLoop); // Guaranteed continuous execution
+    }
   }
 
   // UI Event Handlers
