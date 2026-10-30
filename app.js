@@ -245,7 +245,59 @@
     }
   }
 
-  // Camera Initialization (Optimized for vertical phone orientation)
+  function dismissLoading() {
+    if (loadingScreen && loadingScreen.style.display !== "none") {
+      loadingScreen.style.opacity = "0";
+      setTimeout(() => {
+        loadingScreen.style.display = "none";
+      }, 300);
+    }
+  }
+
+  // Camera Initialization (Optimized for wide-angle and vertical phone orientation)
+  let availableCameras = [];
+  let currentCameraIndex = 0;
+
+  async function updateCameraList() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      availableCameras = devices.filter((d) => d.kind === "videoinput");
+    } catch (e) {}
+  }
+
+  async function switchCamera() {
+    await updateCameraList();
+    if (availableCameras.length <= 1) {
+      alert("Cihazınızda başka kamera veya ultra geniş açı lensi bulunamadı.");
+      return;
+    }
+    currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+    const nextDev = availableCameras[currentCameraIndex];
+    console.log("[*] Switching camera to:", nextDev.label || nextDev.deviceId);
+
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach((t) => t.stop());
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          deviceId: { exact: nextDev.deviceId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 60 },
+        },
+      });
+      video.srcObject = stream;
+      await video.play();
+      resizeCanvas();
+      calibration.initCorners(video.videoWidth, video.videoHeight);
+    } catch (err) {
+      console.warn("Camera switch error:", err);
+    }
+  }
+
   async function initCamera() {
     const isPortrait = window.innerHeight > window.innerWidth;
     const constraints = {
@@ -258,6 +310,9 @@
       },
     };
 
+    // Safety fallback: Dismiss loading screen after 2.5s regardless
+    setTimeout(dismissLoading, 2500);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = stream;
@@ -265,6 +320,7 @@
       await new Promise((resolve) => {
         video.onloadedmetadata = () => {
           video.play();
+          dismissLoading();
           resolve();
         };
       });
@@ -272,6 +328,7 @@
       console.log(`[✓] Camera running: ${video.videoWidth}x${video.videoHeight}`);
       resizeCanvas();
       calibration.initCorners(video.videoWidth, video.videoHeight);
+      await updateCameraList();
 
     } catch (err) {
       console.warn("Rear camera not available, falling back to any video source:", err);
@@ -279,9 +336,11 @@
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         video.srcObject = fallbackStream;
         await video.play();
+        dismissLoading();
         resizeCanvas();
         calibration.initCorners(video.videoWidth, video.videoHeight);
       } catch (fatalErr) {
+        dismissLoading();
         alert("Kamera erişimi sağlanamadı! Lütfen tarayıcı izinlerini kontrol edin: " + fatalErr.message);
         throw fatalErr;
       }
@@ -289,8 +348,22 @@
   }
 
   function resizeCanvas() {
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
+    const vw = video.videoWidth || 1280;
+    const vh = video.videoHeight || 720;
+    canvas.width = vw;
+    canvas.height = vh;
+
+    // Maintain exact aspect ratio without cropping (unzoomed)
+    const videoRatio = vw / vh;
+    const windowRatio = window.innerWidth / window.innerHeight;
+
+    if (windowRatio > videoRatio) {
+      canvas.style.height = "100%";
+      canvas.style.width = `${window.innerHeight * videoRatio}px`;
+    } else {
+      canvas.style.width = "100%";
+      canvas.style.height = `${window.innerWidth / videoRatio}px`;
+    }
   }
 
   window.addEventListener("resize", () => {
@@ -445,6 +518,11 @@
       gesture.zoomSensitivity = val;
       valZoom.textContent = val;
     });
+
+    const btnSwitchCamera = document.getElementById("btn-switch-camera");
+    if (btnSwitchCamera) {
+      btnSwitchCamera.addEventListener("click", switchCamera);
+    }
 
     btnResetCalib.addEventListener("click", () => {
       if (confirm("Kalibrasyon varsayılan ayarlara sıfırlansın mı?")) {

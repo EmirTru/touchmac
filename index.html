@@ -33,9 +33,9 @@
         <div class="status-pill">
           <span id="ping-val">--</span> ms
         </div>
-        <div class="status-pill">
-          <span id="fps-val">--</span> FPS
-        </div>
+        <button id="btn-switch-camera" class="status-pill" title="Kamera / Lens Değiştir">
+          <span>📷 Lens</span>
+        </button>
       </div>
     </header>
 
@@ -49,10 +49,10 @@
       📐 4 renkli köşe pinini MacBook ekranınızın 4 köşesiyle eşleştirin (Büyüteç parmağınızın üstünde açılır).
     </div>
 
-    <!-- Bottom Controls -->
+    <!-- Bottom Controls (Always visible above Safari toolbar) -->
     <footer class="bottom-controls">
-      <button id="btn-calibration" class="btn-pill">
-        <span>📐 Kalibrasyon</span>
+      <button id="btn-calibration" class="btn-pill btn-calib-highlight">
+        <span>📐 KALİBRE ET</span>
       </button>
 
       <div class="mode-toggle-group">
