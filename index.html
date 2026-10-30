@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#07090e">
+  <title>Mac Dokunmatik Ekran</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- MediaPipe Hands & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="app-container">
+    <!-- Camera Viewport & Overlay Canvas -->
+    <div id="viewport-container">
+      <video id="webcam-video" playsinline webkit-playsinline autoplay muted></video>
+      <canvas id="render-canvas"></canvas>
+    </div>
+
+    <!-- Top Telemetry & Status Bar -->
+    <header class="top-bar">
+      <div class="pill-group">
+        <div class="status-pill">
+          <div class="status-dot" id="ws-dot"></div>
+          <span id="ws-status">Bağlanıyor...</span>
+        </div>
+      </div>
+      <div class="pill-group">
+        <div class="status-pill">
+          <span id="ping-val">--</span> ms
+        </div>
+        <div class="status-pill">
+          <span id="fps-val">--</span> FPS
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Active Gesture Badge -->
+    <div class="gesture-badge-container">
+      <div id="gesture-badge" class="gesture-badge">HAZIR</div>
+    </div>
+
+    <!-- Calibration Instruction Banner -->
+    <div id="calibration-toast" class="calibration-toast">
+      📐 4 renkli köşe pinini MacBook ekranınızın 4 köşesiyle eşleştirin (Büyüteç parmağınızın üstünde açılır).
+    </div>
+
+    <!-- Bottom Controls -->
+    <footer class="bottom-controls">
+      <button id="btn-calibration" class="btn-pill">
+        <span>📐 Kalibrasyon</span>
+      </button>
+
+      <div class="mode-toggle-group">
+        <button id="mode-pinch" class="mode-btn active">Kıskaç (Pinch)</button>
+        <button id="mode-touch" class="mode-btn">Temas (Touch)</button>
+      </div>
+
+      <button id="btn-settings" class="btn-pill">
+        <span>⚙️</span>
+      </button>
+    </footer>
+
+    <!-- Settings Drawer / Modal -->
+    <div id="settings-modal" class="modal-overlay">
+      <div class="modal-sheet">
+        <div class="sheet-header">
+          <h2 class="sheet-title">Jest & Hassasiyet Ayarları</h2>
+          <button id="sheet-close" class="sheet-close">&times;</button>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">
+            <span>Kıskaç Hassasiyeti (Pinch Threshold)</span>
+            <span id="val-pinch">0.38</span>
+          </div>
+          <input type="range" id="slider-pinch" class="setting-slider" min="0.20" max="0.60" step="0.02" value="0.38">
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">
+            <span>Temas Derinliği (Touch Z-Threshold)</span>
+            <span id="val-depth">-0.06</span>
+          </div>
+          <input type="range" id="slider-depth" class="setting-slider" min="-0.15" max="0.05" step="0.01" value="-0.06">
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">
+            <span>İmleç Yumuşatma (Tremor Filter)</span>
+            <span id="val-smoothing">0.45</span>
+          </div>
+          <input type="range" id="slider-smoothing" class="setting-slider" min="0.10" max="0.90" step="0.05" value="0.45">
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">
+            <span>Kaydırma Hızı (Scroll Speed)</span>
+            <span id="val-scroll">35</span>
+          </div>
+          <input type="range" id="slider-scroll" class="setting-slider" min="10" max="80" step="5" value="35">
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-label">
+            <span>Yakınlaştırma Hızı (Zoom Speed)</span>
+            <span id="val-zoom">15</span>
+          </div>
+          <input type="range" id="slider-zoom" class="setting-slider" min="5" max="40" step="1" value="15">
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button id="btn-reset-calib" class="btn-pill" style="flex: 1; justify-content: center; background: rgba(255,59,48,0.2); border-color: #ff3b30; color: #ff3b30;">
+            Kalibrasyonu Sıfırla
+          </button>
+          <a href="/guide" target="_blank" class="btn-pill" style="flex: 1; justify-content: center; text-decoration: none; text-align: center;">
+            Mac Kılavuzu
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Initial Loading Screen -->
+    <div id="loading-screen">
+      <div class="spinner"></div>
+      <h2 class="loading-title">Kamera & El Takibi Başlatılıyor</h2>
+      <p class="loading-sub">
+        Lütfen tarayıcının kamera erişimine izin verin. Telefonunuzu MacBook ekranını görecek şekilde konumlandırın.
+      </p>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="calibration.js"></script>
+  <script src="gesture.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
